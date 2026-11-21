@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>La Liga Live Standings</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --card: #181b24;
+      --border: #282d3d;
+      --text: #f3f4f6;
+      --muted: #9ca3af;
+      --accent: #ff4b44; /* La Liga Coral Red */
+      --ucl: #3b82f6;
+      --uel: #f97316;
+      --rel: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      display: flex;
+      justify-content: center;
+      padding: 2rem 1rem;
+    }
+
+    .widget {
+      width: 100%;
+      max-width: 760px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+    }
+
+    .header {
+      background: linear-gradient(135deg, #1f2433 0%, #151822 100%);
+      padding: 1.25rem 1.5rem;
+      border-bottom: 2px solid var(--accent);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+
+    .header h1 {
+      font-size: 1.25rem;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .badge {
+      background: var(--accent);
+      color: #fff;
+      font-size: 0.7rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+
+    .controls input {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.45rem 0.75rem;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      outline: none;
+    }
+
+    .controls input:focus {
+      border-color: var(--accent);
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.9rem;
+    }
+
+    th {
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      padding: 0.85rem 0.75rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    td {
+      padding: 0.85rem 0.75rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tr:hover {
+      background-color: rgba(255, 255, 255, 0.03);
+    }
+
+    .pos {
+      font-weight: 700;
+      width: 40px;
+      text-align: center;
+      border-left: 3px solid transparent;
+    }
+
+    .pos.ucl { border-left-color: var(--ucl); }
+    .pos.uel { border-left-color: var(--uel); }
+    .pos.rel { border-left-color: var(--rel); }
+
+    .team-cell {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      font-weight: 600;
+    }
+
+    .crest {
+      width: 22px;
+      height: 22px;
+      object-fit: contain;
+    }
+
+    .num {
+      text-align: center;
+      color: var(--muted);
+    }
+
+    .pts {
+      text-align: center;
+      font-weight: 800;
+      color: var(--text);
+    }
+
+    .legend {
+      display: flex;
+      gap: 1.25rem;
+      padding: 0.85rem 1.5rem;
+      font-size: 0.75rem;
+      color: var(--muted);
+      background: #13161e;
+      flex-wrap: wrap;
+    }
+
+    .legend span {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="widget">
+    <div class="header">
+      <h1>LALIGA EA SPORTS <span class="badge">Standings</span></h1>
+      <div class="controls">
+        <input type="text" id="searchInput" placeholder="Search club..." />
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="text-align:center;">#</th>
+            <th>Club</th>
+            <th class="num">MP</th>
+            <th class="num">W</th>
+            <th class="num">D</th>
+            <th class="num">L</th>
+            <th class="num">GD</th>
+            <th class="num">Pts</th>
+          </tr>
+        </thead>
+        <tbody id="standingsBody"></tbody>
+      </table>
+    </div>
+
+    <div class="legend">
+      <span><i class="dot" style="background:var(--ucl)"></i> Champions League</span>
+      <span><i class="dot" style="background:var(--uel)"></i> Europa League</span>
+      <span><i class="dot" style="background:var(--rel)"></i> Relegation</span>
+    </div>
+  </div>
+
+  <script>
+    // 1. CONFIGURATION
+    // Set USE_LIVE_API to true and add your key (requires a backend proxy or CORS extension in browser)
+    const USE_LIVE_API = false;
+    const API_KEY = "YOUR_FOOTBALL_DATA_API_KEY";
+    const API_URL = "https://football-data.org";
+
+    // Fallback data so the UI renders immediately without an API key
+    const SAMPLE_DATA = [
+      { position: 1, team: { name: "FC Barcelona", crest: "https://football-data.org" }, playedGames: 13, won: 11, draw: 0, lost: 2, goalDifference: 28, points: 33 },
+      { position: 2, team: { name: "Real Madrid CF", crest: "https://football-data.org" }, playedGames: 13, won: 9, draw: 3, lost: 1, goalDifference: 17, points: 30 },
+      { position: 3, team: { name: "Atlético de Madrid", crest: "https://football-data.org" }, playedGames: 13, won: 7, draw: 5, lost: 1, goalDifference: 12, points: 26 },
+      { position: 4, team: { name: "Villarreal CF", crest: "https://football-data.org" }, playedGames: 13, won: 7, draw: 3, lost: 3, goalDifference: 5, points: 24 },
+      { position: 5, team: { name: "Athletic Club", crest: "https://football-data.org" }, playedGames: 13, won: 6, draw: 4, lost: 3, goalDifference: 6, points: 22 },
+      { position: 6, team: { name: "Real Betis", crest: "https://football-data.org" }, playedGames: 13, won: 5, draw: 5, lost: 3, goalDifference: 2, points: 20 },
+      { position: 18, team: { name: "RCD Espanyol", crest: "https://football-data.org" }, playedGames: 13, won: 3, draw: 1, lost: 9, goalDifference: -12, points: 10 },
+      { position: 19, team: { name: "Real Valladolid", crest: "https://football-data.org" }, playedGames: 13, won: 2, draw: 3, lost: 8, goalDifference: -15, points: 9 },
+      { position: 20, team: { name: "Valencia CF", crest: "https://football-data.org" }, playedGames: 13, won: 1, draw: 4, lost: 8, goalDifference: -13, points: 7 }
+    ];
+
+    let allTeams = [];
+
+    function getZoneClass(pos) {
+      if (pos <= 4) return "ucl";
+      if (pos === 5) return "uel";
+      if (pos >= 18) return "rel";
+      return "";
+    }
+
+    function renderTable(teams) {
+      const tbody = document.getElementById("standingsBody");
+      tbody.innerHTML = teams.map(row => `
+        <tr>
+          <td class="pos ${getZoneClass(row.position)}">${row.position}</td>
+          <td>
+            <div class="team-cell">
+              <img class="crest" src="${row.team.crest}" alt="${row.team.name}" onerror="this.style.display='none'">
+              <span>${row.team.name}</span>
+            </div>
+          </td>
+          <td class="num">${row.playedGames}</td>
+          <td class="num">${row.won}</td>
+          <td class="num">${row.draw}</td>
+          <td class="num">${row.lost}</td>
+          <td class="num">${row.goalDifference > 0 ? "+" + row.goalDifference : row.goalDifference}</td>
+          <td class="pts">${row.points}</td>
+        </tr>
+      `).join("");
+    }
+
+    async function init() {
+      if (USE_LIVE_API) {
+        try {
+          const res = await fetch(API_URL, {
+            headers: { "X-Auth-Token": API_KEY }
+          });
+          const data = await res.json();
+          allTeams = data.standings[0].table;
+        } catch (err) {
+          console.error("API failed, loading sample data:", err);
+          allTeams = SAMPLE_DATA;
+        }
+      } else {
+        allTeams = SAMPLE_DATA;
+      }
+      renderTable(allTeams);
+    }
+
+    // Live club search filter
+    document.getElementById("searchInput").addEventListener("input", (e) => {
+      const term = e.target.value.toLowerCase();
+      const filtered = allTeams.filter(row =>
+        row.team.name.toLowerCase().includes(term)
+      );
+      renderTable(filtered);
+    });
+
+    init();
+  </script>
+</body>
+</html>
